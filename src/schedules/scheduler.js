@@ -49,24 +49,29 @@ module.exports.taskDeleteSentMessages = cron.schedule('32 11 */1 * *', function 
 module.exports.taskSentMessages = cron.schedule('*/30 * * * * *', function () {
 
     MessagesService.getMessagesToSend("0, 2, 3")
-        .then(message => {
-            message.forEach(async (node) => {
-                logger.info(`sending message ${node.uuid} (to user: ${node.idUser})`)
+        .then(messages => {
+            messages.forEach(async (message) => {
+                logger.info(`sending message ${message.uuid} (to user: ${message.idUser})`)
 
                 try {
-                    let userMsgRoute = await MessagesService.getMessengerUserMessageRoutes(node.idUser, node.idEventType)
+                    let userMsgRoutes = await MessagesService.getMessengerUserMessageRoutes(message.idUser, message.idEventType)
+
+                    if (!userMsgRoutes || userMsgRoutes.length == 0) {
+                        throw 'no routes found';
+                    }
+
                     let error_sending = 'sending error'
 
-                    for (const item of userMsgRoute) {
+                    for (const item of userMsgRoutes) {
                         switch (item.messengerCode.toUpperCase()) {
                             case "TELEGRAM":
                                 let tgmBotRecord = getClient(item.botCode)
 
-                                // if (node.attachedFile){
-                                //     tgmBotRecord.bot.sendDocument(item.outerId, node.attachedFile)
+                                // if (message.attachedFile){
+                                //     tgmBotRecord.bot.sendDocument(item.outerId, message.attachedFile)
                                 // } else {
                                 try {
-                                    await tgmBotRecord.sendMessage(item.outerId, node.text)
+                                    await tgmBotRecord.sendMessage(item.outerId, message.text)
                                     error_sending = ''
                                     logger.info(`send to telegram - success`)
                                 } catch (e) {
@@ -79,7 +84,7 @@ module.exports.taskSentMessages = cron.schedule('*/30 * * * * *', function () {
                             case "VIBER":
                                 let viberBotRecord = getClient(item.botCode)
                                 try {
-                                    await viberBotRecord.sendText(item.outerId, node.text)
+                                    await viberBotRecord.sendText(item.outerId, message.text)
                                     error_sending = ''
                                     logger.info(`send to viber - success`)
                                 } catch (e) {
@@ -92,16 +97,16 @@ module.exports.taskSentMessages = cron.schedule('*/30 * * * * *', function () {
 
                     if (!error_sending) {
                         await MessagesService.setMessageStatus({
-                            message: {uuid: node.uuid},
+                            message: {uuid: message.uuid},
                             status: 1
                         });
-                        if(node.idIncomRequest && node.idIncomRequest != 0) {
-                            await IncomRequestService.setIncomRequestStatus(node.idIncomRequest, 3)
+                        if (message.idIncomRequest && message.idIncomRequest != 0) {
+                            await IncomRequestService.setIncomRequestStatus(message.idIncomRequest, 3)
                         }
                         logger.info(`set status 'sent'`)
                     } else {
                         await MessagesService.setMessageStatus({
-                            message: {uuid: node.uuid},
+                            message: {uuid: message.uuid},
                             status: 3
                         });
                         logger.error('[sendMessage]: ' + error_sending)
@@ -110,7 +115,7 @@ module.exports.taskSentMessages = cron.schedule('*/30 * * * * *', function () {
 
                 } catch (err) {
                     await MessagesService.setMessageStatus({
-                        message: {uuid: node.uuid},
+                        message: {uuid: message.uuid},
                         status: 2
                     });
                     logger.error('[sendMessage]: ' + err)
