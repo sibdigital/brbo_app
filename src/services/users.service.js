@@ -114,7 +114,31 @@ class UsersService {
         }
     }
 
+    async registeredUser(userId, botToken) {
+        const users = await this.findAll(userId);
 
+        if (!users) {
+            return false;
+        }
+
+        let bot;
+        users[0].clsMessengerByIdMessenger.clsBotsByIdMessenger.nodes
+          .forEach(item => {
+              let settings = JSON.parse(item.settings)
+              if (settings.accessToken == botToken) {
+                  bot = item
+              }
+          })
+
+        if (!bot) {
+            return false;
+        }
+
+        return {
+            user: users[0].clsUserByIdUser,
+            bot: bot
+        }
+    }
 }
 
 module.exports = new UsersService();

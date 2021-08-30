@@ -233,9 +233,11 @@ class MessagesService {
             let data = await graphQLClient.request(gquery);
 
             if(data.allVMessengerUserMessageRoutes.nodes[0]) {
+                const ids = data.allVMessengerUserMessageRoutes.nodes.map(node => "\"" + node.idEventType + "\"")
+
                 const result = await graphQLClient.request(gql`
                     {
-                        allClsEventTypes(condition: {uuid: "${data.allVMessengerUserMessageRoutes.nodes[0].idEventType}"}) {
+                        allClsEventTypes(filter: {uuid: {in: [${ids}]}}) {
                             nodes {
                                 name
                                 code
