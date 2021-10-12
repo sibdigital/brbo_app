@@ -122,13 +122,17 @@ class UsersService {
         }
 
         let bot;
-        users[0].clsMessengerByIdMessenger.clsBotsByIdMessenger.nodes
-          .forEach(item => {
-              let settings = JSON.parse(item.settings)
-              if (settings.accessToken == botToken) {
-                  bot = item
-              }
-          })
+
+        const user = users[0];
+        if (user) {
+            user.clsMessengerByIdMessenger.clsBotsByIdMessenger.nodes
+              .forEach(item => {
+                  let settings = JSON.parse(item.settings)
+                  if (settings.accessToken == botToken) {
+                      bot = item
+                  }
+              })
+        }
 
         if (!bot) {
             return false;
