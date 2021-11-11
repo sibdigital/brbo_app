@@ -30,22 +30,22 @@ class MessageController {
                         message.idTargetSystem = data[0].idTargetSystem
                         message.idUser = data[0].clsTargetSystemByIdTargetSystem.regTargetSystemUsersByIdTargetSystem.edges[0].node.idUser
 
-                        if (message.id_incom_request) {
-                            const isUpdated = await IncomRequestService.setIncomRequestStatus(message.id_incom_request, 2)
+                        if (message.idIncomRequest) {
+                            const isUpdated = await IncomRequestService.setIncomRequestStatus(message.idIncomRequest, 2)
                             if(isUpdated){
-                                logger.info('message.id_incom_request (' + message.id_incom_request + ') status is set=2')
+                                logger.info('message.id_incom_request (' + message.idIncomRequest + ') status is set=2')
                             } else {
-                                logger.error('message.id_incom_request (' + message.id_incom_request + ') error set status')
+                                logger.error('message.id_incom_request (' + message.idIncomRequest + ') error set status')
                             }
                         }
 
-                        if (message.attached_file){
-                             // save to filesystem
+                        if (message.attachedFile){
+                            // save to filesystem
                         } else {
-                            message.attached_file = null
-                            message.attached_file_type = null
-                            message.attached_file_size = null
-                            message.attached_file_hash = null
+                            message.attachedFile = null
+                            message.attachedFileType = null
+                            message.attachedFileSize = null
+                            message.attachedFileHash = null
                         }
 
                         const result = await MessageService.addMessage(message)

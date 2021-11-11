@@ -104,6 +104,47 @@ class EventTypesService {
             return false
         }
     }
+
+    async getParentEventsById(Id){
+        try {
+            const data = await graphQLClient.request(gql`
+                {
+                      allClsEventTypes(condition: {idParent: "${Id}", isDeleted: false}) {
+                        nodes {
+                          code
+                          dateCreate
+                          idParent
+                          idTargetSystem
+                          isDeleted
+                          name
+                          type
+                        }
+                      }
+                }
+            `)
+            return data.allClsEventTypes.nodes
+        } catch (e) {
+            logger.error(`eventTypesService.getParentEventsById() - ` + e)
+            return false
+        }
+    }
+    async getParentIdByCode(code){
+        try {
+            const data = await graphQLClient.request(gql`
+                {
+                  allClsEventTypes(condition: {code: "${code}", isDeleted: false}) {
+                    nodes {
+                      uuid
+                    }
+                  }
+                }
+            `)
+            return data.allClsEventTypes.nodes[0]
+        } catch (e) {
+            logger.error(`eventTypesService.getParentEventsById() - ` + e)
+            return false
+        }
+    }
 }
 
 module.exports = new EventTypesService()

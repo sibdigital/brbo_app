@@ -62,16 +62,37 @@ module.exports.taskSentMessages = cron.schedule('*/30 * * * * *', function () {
 
                     let error_sending = 'sending error'
 
+                    let messageToSend = JSON.parse(message.text);
+                    let settingsToSend = JSON.parse(message.settings);
+                    const buttons = [];
+
                     for (const item of userMsgRoutes) {
                         switch (item.messengerCode.toUpperCase()) {
                             case "TELEGRAM":
                                 let tgmBotRecord = getClient(item.botCode)
 
-                                // if (message.attachedFile){
-                                //     tgmBotRecord.bot.sendDocument(item.outerId, message.attachedFile)
-                                // } else {
                                 try {
-                                    await tgmBotRecord.sendMessage(item.outerId, message.text)
+                                    if(settingsToSend && settingsToSend.length != 0){
+                                        settingsToSend.forEach(item => {
+                                            buttons.push([{'text': item.label , 'callback_data': item.eventTypeCode + ":" + item.identificator}]);
+                                        })
+                                        const replyMarkup = {
+                                            inline_keyboard: buttons
+                                        };
+                                        await tgmBotRecord.sendMessage(item.outerId, "Информация по вашему запросу", { replyMarkup });
+                                    }
+                                    else if(messageToSend && messageToSend.length != 0){
+                                        let message = '';
+                                        messageToSend.forEach(item => {
+                                            message += item.label + "\n";
+                                        })
+                                        await tgmBotRecord.sendMessage(item.outerId, "Информация по вашему запросу");
+                                        await tgmBotRecord.sendMessage(item.outerId, message);
+                                    }
+                                    else{
+                                        await tgmBotRecord.sendMessage(item.outerId, "По вашему запросу ничего не найдено");
+                                    }
+
                                     error_sending = ''
                                     logger.info(`send to telegram - success`)
                                 } catch (e) {

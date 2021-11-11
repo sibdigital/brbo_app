@@ -6,10 +6,10 @@ const IncomRequestService = require('../services/incomRequest.service')
 class RequestController {
 
     async getRequest(req, res) {
-        if (!req.body || !req.body.target_system_code) return res.sendStatus(400);
+        if (!req.body || !req.body.targetSystemCode) return res.sendStatus(400);
 
-        const targetSystemCode = req.body.target_system_code
-        const eventTypeCode = req.body.event_type_code || null
+        const targetSystemCode = req.body.targetSystemCode
+        const eventTypeCode = req.body.eventTypeCode || null
 
         try {
             let requests = null
@@ -46,7 +46,17 @@ class RequestController {
 
                 Promise.allSettled(promises)
                     .then((result) => {
-                        res.send(requests)
+                        res.send(requests.map((item) => {
+                            let json = null;
+                            json = JSON.stringify({
+                                userId: item.clsUserByIdUser.identificator,
+                                idIncomRequest: item.uuid,
+                                requestBody: item.requestBody,
+                                eventTypeCode: item.clsEventTypeByIdEventType.code,
+                            });
+
+                            return json;
+                        }))
                     })
                     .catch(() => res.send(500))
 

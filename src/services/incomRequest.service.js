@@ -49,13 +49,15 @@ class IncomRequestService{
                 {
                     allRegIncomRequests(condition: {idTargetSystem: "${idTargetSystem.allClsTargetSystems.nodes[0].uuid}", idEventType: "${idEventType}", status: 0}) {
                         nodes {
-                            dateCreate
-                            idBot
-                            idEventType
-                            idMessenger
-                            idUser
-                            status
+                            clsUserByIdUser {
+                                identificator
+                            }
                             uuid
+                            clsEventTypeByIdEventType {
+                            code
+                          }
+                            requestBody
+                    
                         }
                     }
                 }
@@ -70,7 +72,7 @@ class IncomRequestService{
     async setIncomRequestStatus(idIncomRequest, statusIncomRequest) {
         try {
             //if (await this.findIncomRequest(idIncomRequest)) {
-                const data = await graphQLClient.request(gql`
+            const data = await graphQLClient.request(gql`
                             mutation {
                                 __typename
                                 updateRegIncomRequestByUuid(input: {regIncomRequestPatch: {status: ${statusIncomRequest}}, uuid: "${idIncomRequest}"}) {
@@ -78,8 +80,8 @@ class IncomRequestService{
                                 }
                             }
                     `
-                )
-                return data.error || true // Promise.resolve({error: '', data: data})
+            )
+            return data.error || true // Promise.resolve({error: '', data: data})
 //            } else {
 //                throw "not found incomRequest"
 //            }
@@ -100,6 +102,7 @@ class IncomRequestService{
                         idEventType: "${params.idEventType}", 
                         idTargetSystem: "${params.idTargetSystem}", 
                         idUser: "${params.idUser}", 
+                        requestBody: "${params.requestBody}",
                         status: 0
                     }}) {
                         clientMutationId

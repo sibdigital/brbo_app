@@ -75,3 +75,14 @@ Brokerbot API:
     {"code": "EVENT_3", "parent_code": "EVENT_1", "target_system_code": "TARGET3", "name": "event 3", "is_deleted": true, "type": 0}
 ]
 }
+
+Как развернуть проект broker_bot:
+1.Заменить папку node_modules/bottender/dist на папку dist приложенную в redmine 
+2.После замены не изменять npm(install/update/...).Если нужно то, до замены dist папки
+3.Версия node должна быть 12+ (nvm use v12)
+4.Добавить если нужен .env файл в root проекта. Файл приложен в redmine
+5.Подключить бд данными из env файла
+6.Если необходимо, то для создания пользователя нужно 4скрипта, приложены в redmine. 
+identificator в телеграмме userId
+              в viber message
+Во view обязательно должна добавиться запись

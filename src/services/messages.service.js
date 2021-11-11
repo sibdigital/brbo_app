@@ -8,27 +8,38 @@ const graphQLClient = new GraphQLClient(endpoint)
 
 class MessagesService {
 
+
     async addMessage(message){
         try{
-            const data = await graphQLClient.request(gql`
-                mutation {
-                    __typename
-                    createRegSentMessage(input: {regSentMessage: {
-                        idEventType: "${message.idEventType}",
-                        idTargetSystem: "${message.idTargetSystem}",
-                        text: "${message.text}",
-                        idUser: "${message.idUser}",
-                        status: 0,
-                        attachedFile: "${message.attached_file}",
-                        attachedFileType: "${message.attached_file_type}",
-                        attachedFileSize: ${message.attached_file_size},
-                        attachedFileHash: "${message.attached_file_hash}"
-                        dateCreate: "${new Date().toISOString()}"}}) {
-                        clientMutationId
-                    }
+            message.status = 0;
+            message.dateCreate = new Date().toISOString();
+            let input = {input: {regSentMessage:message}};
+            delete input.input.regSentMessage.userId;
+            delete input.input.regSentMessage.eventTypeCode;
+
+            const query = gql`
+            mutation MyMutation($input: CreateRegSentMessageInput!) {
+                createRegSentMessage(input: $input) {
+                    clientMutationId
                 }
-            `
-            )
+            }`;
+            const data = await graphQLClient.request(query,input);
+            // mutation {
+            //     __typename
+            //     createRegSentMessage(input: {regSentMessage: {
+            //         idEventType: "${message.idEventType}",
+            //             idTargetSystem: "${message.idTargetSystem}",
+            //             text: "${message.text}",
+            //             idUser: "${message.idUser}",
+            //             status: 0,
+            //             attachedFile: "${message.attached_file}",
+            //             attachedFileType: "${message.attached_file_type}",
+            //             attachedFileSize: ${message.attached_file_size},
+            //         attachedFileHash: "${message.attached_file_hash}"
+            //         dateCreate: "${new Date().toISOString()}"}}) {
+            //         clientMutationId
+            //     }
+            // }
             return data.error || 1
         }catch(reason) {
             logger.error(`messageService.addMessage(): ` + reason)
@@ -86,12 +97,12 @@ class MessagesService {
         try {
             let data = await graphQLClient.request(gql`
                 {
-                    allClsEventTypes(condition: {code: "${message.event_type}", isDeleted: false}) {
+                    allClsEventTypes(condition: {code: "${message.eventTypeCode}", isDeleted: false}) {
                         nodes {
                             uuid
                             idTargetSystem
                             clsTargetSystemByIdTargetSystem {
-                                regTargetSystemUsersByIdTargetSystem(condition: {outerId: "${message.user_id}", isDeleted: false}) {
+                                regTargetSystemUsersByIdTargetSystem(condition: {outerId: "${message.userId}", isDeleted: false}) {
                                     edges {
                                         node {
                                             idUser

@@ -1,11 +1,11 @@
-const { logger } = require('../log')
+const {logger} = require('../log')
 const EventTypeService = require('../services/eventTypes.service')
 const TargetSystemService = require('../services/targetSystem.service')
 
-class EventTypeController{
+class EventTypeController {
 
     //создание типа события
-    createEventType(req, res){
+    createEventType(req, res) {
         if (!req.body) return res.sendStatus(400);
 
         const eventTypes = req.body.event_types
@@ -18,9 +18,9 @@ class EventTypeController{
                 } else {
                     eventType.idTargetSystem = targetSystem[0].uuid
 
-                    if (eventType.parent_code){
+                    if (eventType.parent_code) {
                         const parentEventType = await EventTypeService.findEventTypeByCodeAndType(eventType.parent_code)
-                        if (parentEventType){
+                        if (parentEventType) {
                             eventType.idParent = parentEventType[0].uuid
                         } else {
                             throw `not found parent_event_type by code ${eventType.parent_code}`
@@ -30,7 +30,7 @@ class EventTypeController{
                     }
 
                     const checkEventType = await EventTypeService.findEventTypeByCodeAndTargetSystem(eventType.code, targetSystem[0].uuid)
-                    if (!checkEventType || checkEventType.length == 0){
+                    if (!checkEventType || checkEventType.length == 0) {
                         // add new record
                         return await EventTypeService.addEventType(eventType)
                     } else {
@@ -51,6 +51,31 @@ class EventTypeController{
             res.send(result)
         })
     }
-}
 
+    async getRequestEvent(req, res) {
+        if (!req.body) return res.sendStatus(400);
+
+        const eventTypes = req.body.event_types
+        const idParent = await EventTypeService.getParentIdByCode(eventTypes);
+        const parentEvents = await EventTypeService.getParentEventsById(idParent.uuid)
+        try {
+            res.send(parentEvents.map((item) => {
+                let json = null;
+                json = JSON.stringify({
+                    code: item.code,
+                    name: item.name,
+                    type: item.type,
+                    idParent: item.idParent,
+                    idTargetSystem: item.idTargetSystem,
+                    dateCreate: item.dateCreate
+                })
+                return json;
+            }))
+        } catch (e) {
+            logger.error(`getRequestEvent error: ${e}`)
+            throw `getRequestEvent error: ${e}`
+        }
+
+    }
+}
 module.exports = new EventTypeController()

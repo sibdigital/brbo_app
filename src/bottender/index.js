@@ -37,10 +37,10 @@ function constructKeyboard(context, requests) {
             const keyboard = {
                 replyMarkup: {
                     inlineKeyboard: arr.map(row =>
-                      row.map(cell => ({
-                          text: cell.text,
-                          callbackData: cell.code,
-                      }))
+                        row.map(cell => ({
+                            text: cell.text,
+                            callbackData: cell.code,
+                        }))
                     ),
                 }
             }
@@ -89,6 +89,7 @@ async function ShowKeyboard(context) {
     if (requests && requests.length > 0) {
         const keyboard = constructKeyboard(context, requests);
         await context.sendText(SELECT_REQUEST_MESSAGE, keyboard)
+
     } else {
         await context.sendText(REQUEST_NOT_AVAILABLE_MESSAGE)
     }
@@ -97,29 +98,45 @@ async function ShowKeyboard(context) {
 async function AnswerKeyboard(context) {
     const userId = context._session.user.id
     const botToken = context._client._token
+    const callbackQuery = context.event.callbackQuery.data;
+    const eventTypeSend = callbackQuery.split(":");
+
 
     const registeredUser = await UsersService.registeredUser(userId, botToken);
     if (!registeredUser) {
         await context.sendText(USER_NOT_REGISTERED_MESSAGE)
         return;
     }
-
+    let requestBody = '';
+    let eventSt = '';
     const eventTypeCode = getEventTypeCode(context);
-    const eventType = await EventTypeService.findEventTypeByCodeAndType(eventTypeCode, 1)
+
+    if(eventTypeCode.includes(":"))
+    {
+        requestBody = eventTypeCode.split(":")[1]
+        eventSt = eventTypeCode.split(":")[0]
+
+    }
+    else {
+        eventSt = eventTypeCode;
+    }
+
+    const eventType = await EventTypeService.findEventTypeByCodeAndType(eventSt,null)
     if (eventType && eventType.length > 0) {
-        const requests = await MessagesService.getUserKeyboardData(registeredUser.user.uuid, registeredUser.bot.uuid, eventTypeCode)
+        const requests = await MessagesService.getUserKeyboardData(registeredUser.user.uuid, registeredUser.bot.uuid, eventSt)
         if (requests && requests.length > 0) {
             const keyboard = constructKeyboard(context, requests);
             await context.sendText(SELECT_REQUEST_MESSAGE, keyboard)
         } else {
-            const eventType = await EventTypeService.findEventTypeByCodeAndType(eventTypeCode, 1)
+            const eventType = await EventTypeService.findEventTypeByCodeAndType(eventSt, null)
             if (eventType && eventType.length > 0) {
                 const result = await IncomRequestService.addIncomRequest({
                     idBot: registeredUser.bot.uuid,
                     idMessenger: registeredUser.bot.idMessenger,
                     idEventType: eventType[0].uuid,
                     idTargetSystem: eventType[0].idTargetSystem,
-                    idUser: registeredUser.user.uuid
+                    idUser: registeredUser.user.uuid,
+                    requestBody: requestBody,
                 })
                 if (result) {
                     await context.sendText(REQUEST_ACCEPTED_MESSAGE)
@@ -156,7 +173,9 @@ async function TelegramActions(context) {
     return router([
         text('/start', ShowKeyboard),
         text(/\/register (.+)/, ActivateTgUser),
+        text('*', ShowKeyboard),
         telegram.callbackQuery(AnswerKeyboard),
+        // telegram.chosenInlineResult(context.sendText(getTest)),
         // telegram.any(TelegramDefaultAction),
     ]);
 }
@@ -174,8 +193,9 @@ async function ViberDefaultAction(context) {
 async function ViberActions(context) {
     return router([
         text('/start', ShowKeyboard),
+        //text('*', ShowKeyboard),
         viber.message(AnswerKeyboard),
-        // viber.any(ViberDefaultAction)
+        //viber.any(ViberDefaultAction)
     ]);
 }
 
