@@ -15,6 +15,7 @@ const {TelegramClient} = require('messaging-api-telegram')
 const {ViberClient} = require('messaging-api-viber')
 const server = express()
 
+
 const verify = (req, _, buf) => {
     req.rawBody = buf.toString();
 };
@@ -35,20 +36,26 @@ server.all('*', (req, res) => {
     return handle(req, res);
 });
 let url = process.env.URL
+//const fs = require('fs').promises;
+//let url_ = ''
 
-ngrok.connect({
-    proto: 'http',
-    addr: PORT,
-})
-    .then(urlNgrok => {
-        logger.info('Tunnel Created -> ' + urlNgrok);
-        logger.info('Tunnel Inspector ->  http://127.0.0.1:4040');
-        url = urlNgrok
-    })
-    .catch(err => {
-        console.error('Error while connecting Ngrok', err);
-        return new Error('Ngrok Failed');
-    })
+// ngrok.connect({
+//     proto: 'http',
+//     addr: PORT,
+// })
+//     .then(urlNgrok => {
+//         logger.info('Tunnel Created -> ' + urlNgrok);
+//         logger.info('Tunnel Inspector ->  http://127.0.0.1:4040');
+//         // let url = 'URL_NGROK=' + urlNgrok
+//         // fs.appendFile(".env", url).then(r => logger.info(`URL_NGROK success saved`));
+//
+//         url = urlNgrok
+//     })
+//     .catch(err => {
+//         console.error('Error while connecting Ngrok', err);
+//         return new Error('Ngrok Failed');
+//     })
+
 
 server.listen(PORT, err => {
     if (err) throw err;
@@ -76,7 +83,7 @@ server.listen(PORT, err => {
                 .then(() => {
                     logger.info('Bottender app is prepared')
 
-                    console.log(url)
+                    //console.log(url)
 
                     for (const [channel, value] of Object.entries(r)) {
                         const accessToken = value.accessToken
