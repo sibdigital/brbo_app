@@ -70,6 +70,40 @@ class MessagesService {
         }
     }
 
+    async getSentMessages(params){
+        try {
+            if(params) {
+                const data = await graphQLClient.request(gql`
+                            mutation {
+                                getSentMessages(input: { pFindedStatus: ${params.findedStatus}, pTemporaryStatus: ${params.tempStatus}}){
+                                        regSentMessages {
+                                            uuid
+                                            idUser
+                                            idEventType
+                                            text
+                                            status
+                                            attachedFile
+                                            attachedFileType
+                                            attachedFileSize
+                                            attachedFileHash
+                                            idIncomRequest
+                                            settings
+                                            }
+                                }
+                            }
+                    `
+                )
+                return data.getSentMessages.regSentMessages
+            } else {
+                return 0
+            }
+        } catch(e){
+            logger.error(`messageService.getSentMessages(): ` + e)
+            return 0
+        }
+    }
+
+
     async deleteSentMessages(params){
         try {
             if(params) {
@@ -149,11 +183,11 @@ class MessagesService {
         }
     }
 
-    async getMessengerUserMessageRoutes(idUser, idEventType){
+    async getMessengerUserMessageRoutes(idUser, idEventType, idBot){
         try {
             let data = await graphQLClient.request(gql`
                 {
-                    allVMessengerUserMessageRoutes(condition: {idUser: "${idUser}", idEventType: "${idEventType}"}) {
+                    allVMessengerUserMessageRoutes(condition: {idUser: "${idUser}", idEventType: "${idEventType}", idBot: "${idBot}"}) {
                         nodes {                             
                                 idBot
                                 idUser
@@ -174,6 +208,24 @@ class MessagesService {
             return data.allVMessengerUserMessageRoutes.nodes
         } catch (e) {
             logger.error(`messageService.getMessengerUserMessageRoutes():` + e)
+            return false
+        }
+    }
+
+    async getIdBotByIncomRequest(request){
+        try {
+            let data = await graphQLClient.request(gql`
+                {
+                  allRegIncomRequests(condition: {uuid: "${request}"}) {
+                    nodes {
+                      idBot
+                    }
+                  }
+                }
+            `)
+            return data.allRegIncomRequests.nodes[0]
+        } catch (e) {
+            logger.error(`messageService.getIdBotByIncomRequest():` + e)
             return false
         }
     }

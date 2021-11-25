@@ -58,9 +58,9 @@ class MessageController {
                 }
             })
         })
-
-        Promise.allSettled(promises).then((result) => {
-            const messages = result.map(v => v.status == 'fulfilled' ? v.value : Object.assign({}, {status: v.reason}) )
+        Promise.allSettled(promises)
+            .then((result) => {
+            const messages = result.map(v => v.status == 'fulfilled' ? JSON.stringify(v.value) : Object.assign({}, {status: v.reason}) )
             res.send(messages)
         })
     }

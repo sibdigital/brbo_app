@@ -9,7 +9,13 @@ const IncomRequestService = require("../services/incomRequest.service");
 const USER_NOT_REGISTERED_MESSAGE = 'Вы не зарегистрированы! Пройдите регистрацию';
 const REQUEST_NOT_AVAILABLE_MESSAGE = 'Вам недоступны запросы. Обратитесь к администратору системы';
 const SELECT_REQUEST_MESSAGE = 'Выберите запрос';
-const REQUEST_ACCEPTED_MESSAGE = 'Запрос принят. Ожидайте ответа';
+const REQUEST_ACCEPTED_MESSAGE = '*Запрос принят. Ожидайте ответа*';
+
+const FIND_PROJ = process.env.FIND_PROJ
+const FIND_MEMB = process.env.FIND_MEMB
+const GET_MESS_FIND_PROJ = process.env.MES_FIND_PROJ
+const GET_MESS_FIND_MEMB = process.env.MES_FIND_MEMB
+
 
 function getEventTypeCode(context) {
     let eventTypeCode;
@@ -22,6 +28,7 @@ function getEventTypeCode(context) {
             eventTypeCode = context.event.message.text;
         }
     }
+    context.state.lastEvent = eventTypeCode;
     return eventTypeCode;
 }
 
@@ -75,6 +82,17 @@ function constructKeyboard(context, requests) {
 }
 
 async function ShowKeyboard(context) {
+
+    const lastEvent = context.state.lastEvent;
+    if(lastEvent) {
+        if (context.event.isMessage && lastEvent.includes(FIND_PROJ)) {
+            await FindProj(context, GET_MESS_FIND_PROJ)
+            return
+        } else if (context.event.isMessage && lastEvent.includes(FIND_MEMB)) {
+            await FindMemb(context, GET_MESS_FIND_MEMB)
+            return
+        }
+    }
     const userId = context._session.user.id
     const botToken = context._client._token
 
@@ -96,25 +114,27 @@ async function ShowKeyboard(context) {
 }
 
 async function AnswerKeyboard(context) {
+    if(context.platform == 'telegram'&& context.event.rawEvent.callbackQuery.data == 'Меню'){
+        await ShowKeyboard(context)
+        return;
+    }
     const userId = context._session.user.id
     const botToken = context._client._token
-    const callbackQuery = context.event.callbackQuery.data;
-    const eventTypeSend = callbackQuery.split(":");
-
 
     const registeredUser = await UsersService.registeredUser(userId, botToken);
     if (!registeredUser) {
         await context.sendText(USER_NOT_REGISTERED_MESSAGE)
         return;
     }
-    let requestBody = '';
-    let eventSt = '';
+    let requestBody = null;
+    let eventSt = null;
     const eventTypeCode = getEventTypeCode(context);
 
     if(eventTypeCode.includes(":"))
     {
         requestBody = eventTypeCode.split(":")[1]
         eventSt = eventTypeCode.split(":")[0]
+        context.state.idProject = requestBody
 
     }
     else {
@@ -122,6 +142,7 @@ async function AnswerKeyboard(context) {
     }
 
     const eventType = await EventTypeService.findEventTypeByCodeAndType(eventSt,null)
+
     if (eventType && eventType.length > 0) {
         const requests = await MessagesService.getUserKeyboardData(registeredUser.user.uuid, registeredUser.bot.uuid, eventSt)
         if (requests && requests.length > 0) {
@@ -139,7 +160,7 @@ async function AnswerKeyboard(context) {
                     requestBody: requestBody,
                 })
                 if (result) {
-                    await context.sendText(REQUEST_ACCEPTED_MESSAGE)
+                    await context.sendText(REQUEST_ACCEPTED_MESSAGE, {parseMode: 'markdown'})
                 }
             }
         }
@@ -161,6 +182,59 @@ async function ActivateTgUser(context) {
     }
 }
 
+async function FindProj(context, event) {
+    const user = context.event.message.from
+    const project = context.event.message.text.trim()
+    const botToken = context.client._token
+    if (project) {
+        const registeredUser = await UsersService.registeredUser(user.id, botToken);
+        const eventType = await EventTypeService.findEventTypeByCodeAndType(event, null)
+
+        const result = await IncomRequestService.addIncomRequest({
+            idBot: registeredUser.bot.uuid,
+            idMessenger: registeredUser.bot.idMessenger,
+            idEventType: eventType[0].uuid,
+            idTargetSystem: eventType[0].idTargetSystem,
+            idUser: registeredUser.user.uuid,
+            requestBody: project,
+        })
+        if (result) {
+            await context.sendText(REQUEST_ACCEPTED_MESSAGE, {parseMode: 'markdown'})
+        }
+    } else {
+        await context.sendText(`You are send empty message`);
+    }
+
+}
+
+async function FindMemb(context, event) {
+    const user = context.event.message.from
+    const fio = context.event.message.text.trim()
+    const botToken = context.client._token
+    const idProject = context.state.idProject;
+    const json = JSON.stringify({idProject,fio})
+
+    if (json) {
+        const registeredUser = await UsersService.registeredUser(user.id, botToken);
+        const eventType = await EventTypeService.findEventTypeByCodeAndType(event, null)
+        const result = await IncomRequestService.addIncomRequest({
+            idBot: registeredUser.bot.uuid,
+            idMessenger: registeredUser.bot.idMessenger,
+            idEventType: eventType[0].uuid,
+            idTargetSystem: eventType[0].idTargetSystem,
+            idUser: registeredUser.user.uuid,
+            requestBody: json.replace(/[\\"']/g, '\\$&').replace(/\u0000/g, '\\0'),
+        })
+        if (result) {
+            await context.sendText(REQUEST_ACCEPTED_MESSAGE, {parseMode: 'markdown'})
+        }
+    } else {
+        await context.sendText(`You are send empty message`);
+    }
+
+}
+
+
 async function TelegramDefaultAction(context) {
     if (context.event.isMessage) {
         const user = context.event.message.from
@@ -170,14 +244,20 @@ async function TelegramDefaultAction(context) {
 }
 
 async function TelegramActions(context) {
+    const message = context.event.rawEvent;
+    const previousEvent = context.event.rawEvent.updateId-1;
+    context.setState({previousEvent})
+    context.setState({[message.updateId]: {message}})
     return router([
         text('/start', ShowKeyboard),
         text(/\/register (.+)/, ActivateTgUser),
-        text('*', ShowKeyboard),
+        text("*", ShowKeyboard),
         telegram.callbackQuery(AnswerKeyboard),
+
         // telegram.chosenInlineResult(context.sendText(getTest)),
         // telegram.any(TelegramDefaultAction),
     ]);
+
 }
 
 /* Viber functions */
@@ -204,4 +284,5 @@ module.exports = async function App(context) {
         platform('telegram', TelegramActions),
         platform('viber', ViberActions),
     ]);
+
 };

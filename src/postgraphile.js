@@ -11,6 +11,7 @@ const devOptions = {
     graphiql: true,
     enhanceGraphiql: true,
     appendPlugins: [ConnectionFilterPlugin],
+    disableQueryLog: true,
 /*
     subscriptions: true,
     watchPg: true,
