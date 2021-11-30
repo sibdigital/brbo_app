@@ -25,7 +25,6 @@ const Bottender = bottender({
 
 const handle = Bottender.getRequestHandler();
 
-
 server.use(bodyParser.json({verify}));
 server.use(bodyParser.urlencoded({extended: false, verify}));
 server.use(cors())
@@ -34,22 +33,6 @@ server.use("/api", routes)
 server.all('*', (req, res) => {
     return handle(req, res);
 });
-
-//let url = process.env.URL
-
-// ngrok.connect({
-//     proto: 'http',
-//     addr: PORT,
-// })
-//     .then(urlNgrok => {
-//         logger.info('Tunnel Created -> ' + urlNgrok);
-//         logger.info('Tunnel Inspector ->  http://127.0.0.1:4040');
-//         url = urlNgrok
-// })
-// .catch(err => {
-//     console.error('Error while connecting Ngrok', err);
-//     return new Error('Ngrok Failed');
-// })
 
 ngrok.connect({
     proto: 'http',
@@ -60,7 +43,7 @@ ngrok.connect({
         logger.info('Tunnel Inspector ->  http://127.0.0.1:4040');
 
         //url если через heroku
-        //url = process.env.URL
+        //url = process.env.URL_HEROKU
 
         server.listen(PORT, err => {
             if (err) throw err;
@@ -89,8 +72,6 @@ ngrok.connect({
                     Bottender.prepare(config)
                         .then(() => {
                             logger.info('Bottender app is prepared')
-
-                            //console.log(url)
 
                             for (const [channel, value] of Object.entries(r)) {
                                 const accessToken = value.accessToken
