@@ -145,6 +145,25 @@ class EventTypesService {
             return false
         }
     }
+    async getAllEventType(){
+        try {
+            const data = await graphQLClient.request(gql`
+                {
+                  allClsEventTypes {
+                    nodes {
+                      code
+                      name
+                      idParent
+                    }
+                  } 
+                }
+            `)
+            return data.allClsEventTypes.nodes
+        } catch (e) {
+            logger.error(`eventTypesService.getAllEventType() - ` + e)
+            return false
+        }
+    }
 }
 
 module.exports = new EventTypesService()

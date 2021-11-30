@@ -53,6 +53,7 @@ class RequestController {
                                 idIncomRequest: item.uuid,
                                 requestBody: item.requestBody,
                                 eventTypeCode: item.clsEventTypeByIdEventType.code,
+                                idBot: item.idBot,
                             });
 
                             return json;

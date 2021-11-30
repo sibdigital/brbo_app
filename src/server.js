@@ -15,7 +15,6 @@ const {TelegramClient} = require('messaging-api-telegram')
 const {ViberClient} = require('messaging-api-viber')
 const server = express()
 
-
 const verify = (req, _, buf) => {
     req.rawBody = buf.toString();
 };
@@ -35,15 +34,33 @@ server.use("/api", routes)
 server.all('*', (req, res) => {
     return handle(req, res);
 });
-let url = process.env.URL
+
+//let url = process.env.URL
 
 // ngrok.connect({
 //     proto: 'http',
 //     addr: PORT,
 // })
-//     .then(url => {
-//         logger.info('Tunnel Created -> ' + url);
+//     .then(urlNgrok => {
+//         logger.info('Tunnel Created -> ' + urlNgrok);
 //         logger.info('Tunnel Inspector ->  http://127.0.0.1:4040');
+//         url = urlNgrok
+// })
+// .catch(err => {
+//     console.error('Error while connecting Ngrok', err);
+//     return new Error('Ngrok Failed');
+// })
+
+ngrok.connect({
+    proto: 'http',
+    addr: PORT,
+})
+    .then(url => {
+        logger.info('Tunnel Created -> ' + url);
+        logger.info('Tunnel Inspector ->  http://127.0.0.1:4040');
+
+        //url если через heroku
+        //url = process.env.URL
 
         server.listen(PORT, err => {
             if (err) throw err;
@@ -111,8 +128,8 @@ let url = process.env.URL
                     return null
                 })
         })
-    // })
-    // .catch(err => {
-    //     console.error('Error while connecting Ngrok', err);
-    //     return new Error('Ngrok Failed');
-    // })
+    })
+    .catch(err => {
+        console.error('Error while connecting Ngrok', err);
+        return new Error('Ngrok Failed');
+    })
