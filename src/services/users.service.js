@@ -69,7 +69,7 @@ class UsersService {
                         regTargetSystemUser: {
                             idTargetSystem: "${targetSystemId}",
                             login: "${user.login}",
-                            outerId: "${user.login}",
+                            outerId: "${user.identificator}",
                             firstname: "${user.firstname || ''}",
                             lastname: "${user.lastname || ''}",
                             patronymic: "${user.patronymic || ''}",
@@ -79,11 +79,63 @@ class UsersService {
                     }) {
                         clientMutationId
                     }
-                }
-            `)
+                }`);
             return data.error || 1
         } catch (e) {
             logger.error(`UsersService.createRegTargetSystemUser(${targetSystemId}, ${user.login}) - ` + e)
+            return 0
+        }
+    }
+    async createUser(user){
+        try {
+            let data = await graphQLClient.request(gql`
+                mutation {
+                    createClsUser(input: {
+                        clsUser: {
+                            login: "${user.login}",
+                            identificator: "${user.outerId}",
+                            firstname: "${user.firstname || ''}",
+                            lastname: "${user.lastname || ''}",
+                            patronymic: "${user.patronymic || ''}",
+                            email: "${user.email || ''}"
+                            isDeleted: false
+                        }
+                    }) {
+                        clientMutationId
+                            clsUser {
+                              code
+                              dateCreate
+                              email
+                              identificator
+                              firstname
+                              isDeleted
+                              lastname
+                              login
+                              patronymic
+                              uuid
+                            }
+                    }
+                }`);
+
+            return data.error || data.createClsUser.clsUser
+        } catch (e) {
+            logger.error(`usersService.createUser - ` + e)
+            return false
+        }
+    }
+    async updateTargetUserId(id, userId){
+        try {
+            const input = {input:{regTargetSystemUserPatch: {idUser: userId}, uuid: id}}
+            const query = gql`
+            mutation MyMutation ($input: UpdateRegTargetSystemUserByUuidInput!){
+              updateRegTargetSystemUserByUuid(input: $input){
+                clientMutationId
+              }
+            }`
+            const data = await graphQLClient.request(query,input);
+            return data.error || 1
+        } catch (e) {
+            logger.error(`usersService.updateTargetUserId - ` + e)
             return 0
         }
     }
@@ -99,7 +151,8 @@ class UsersService {
                             lastname: "${user.lastname || ''}",
                             patronymic: "${user.patronymic || ''}",
                             email: "${user.email || ''}",
-                            isDeleted: ${user.is_deleted || false}
+                            isDeleted: ${user.is_deleted || false},
+                            outerId: "${user.identificator || '' }"
                         },
                         uuid: "${targetSystemUserId}" 
                     }) {
@@ -143,6 +196,83 @@ class UsersService {
             bot: bot
         }
     }
+
+    async getTargetUserByIdentificator(identificator) {
+        try {
+            let data = await graphQLClient.request(gql`
+            {
+                   allRegTargetSystemUsers(condition: {outerId: "${identificator}", isDeleted: false}) {
+                    nodes {
+                          outerId
+                          patronymic
+                          login
+                          lastname
+                          isDeleted
+                          firstname
+                          email
+                          uuid
+                          idTargetSystem
+                    }
+                }
+            }
+            `)
+            return data.allRegTargetSystemUsers.nodes
+        } catch (e) {
+            logger.error(`usersService.getTargetUserByIdentificator - ` + e)
+            return false
+        }
+    }
+    async getAllEvents(){
+        try {
+            let data = await graphQLClient.request(gql`
+            {
+                  allClsEventTypes(condition: { isDeleted: false }) {
+                    nodes {
+                      code
+                      name
+                      idParent
+                      uuid
+                    }
+                  }
+            }
+            `)
+            return data.allClsEventTypes.nodes
+        }
+        catch (e) {
+            logger.error(`usersService.getAllEvents - ` + e)
+            return false
+        }
+    }
+
+    async createMessageRoutes(inputMess, idBot, idTargetSystem){
+        try{
+            const query = gql`
+            mutation MyMutation($input: CreateRegMessageRouteInput!) {
+              createRegMessageRoute(input: $input) {
+                clientMutationId
+              }
+            }`;
+            await this.getAllEvents().then(async item => {
+                for (const [channel, value] of Object.entries(item)) {
+                        inputMess.idEventType = value.uuid
+                        inputMess.isDeleted = false
+                        inputMess.idTargetSystem = idTargetSystem
+                        inputMess.idBot = idBot
+                        inputMess.dateActivation = new Date().toISOString();
+                        delete inputMess.outerId;
+                        let input = {input: {regMessageRoute:inputMess}};
+                        await graphQLClient.request(query, input)
+                }
+            })
+
+            return true
+        }
+        catch (e) {
+            logger.error(`usersService.createMessageRoutes - ` + e)
+            return false
+        }
+    }
 }
 
 module.exports = new UsersService();
+

@@ -10,27 +10,24 @@ class UserController {
 
         const users = req.body.users
 
-        logger.info(`received array of users. length: ${users.length}`)
-
         const promises = users.map(async (user) => {
             return new Promise(async (resolve, reject) => {
                 try {
-                    const targetSystem = await targetSystemService.findTargetSystemByCode(user.target_system_code)
+                    const targetSystem = await targetSystemService.findTargetSystemByCode(user.targetSystemCode)
                     if(targetSystem.length == 0){
-                        user.status = `target system ${user.target_system_code} not found`
+                        user.status = `target system ${user.targetSystemCode} not found`
                     } else {
                         const targetSystemUser = await usersService.findRegTargetSystemUser(targetSystem[0].uuid, user.login)
                         if(targetSystemUser.length > 0){
                             //update
-                            const result = await usersService.updateRegTargetSystemUser(targetSystemUser[0].uuid, user)
-                            user.status = result ? 'updated' : 'error update'
+                            const resultUpdateTargetUser = await usersService.updateRegTargetSystemUser(targetSystemUser[0].uuid, user)
+                            user.status = resultUpdateTargetUser ? 'updated' : 'error update'
                         } else {
                             //insert
-                            const result = await usersService.createRegTargetSystemUser(targetSystem[0].uuid, user)
-                            user.status = result ? 'created' : 'error create'
+                            const resultCreateTargetUser = await usersService.createRegTargetSystemUser(targetSystem[0].uuid, user)
+                            user.status = resultCreateTargetUser ? 'created' : 'error create'
                         }
                     }
-
                     return resolve(user)
                 } catch (e) {
                     logger.error(`[userController.createOrUpdate]: ${e}`)
@@ -40,7 +37,7 @@ class UserController {
         })
 
         Promise.allSettled(promises).then((result) => {
-            const users = result.map(v => v.status == 'fulfilled' ? v.value : Object.assign({}, {status: v.reason}) )
+            const users = result.map(v => v.status == 'fulfilled' ? JSON.stringify(v.value) : Object.assign({}, {status: v.reason}) )
             res.send(users)
         })
     }

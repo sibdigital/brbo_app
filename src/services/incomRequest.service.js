@@ -49,16 +49,15 @@ class IncomRequestService{
                 {
                     allRegIncomRequests(condition: {idTargetSystem: "${idTargetSystem.allClsTargetSystems.nodes[0].uuid}", idEventType: "${idEventType}", status: 0}) {
                         nodes {
-                            clsUserByIdUser {
-                                identificator
-                            }
-                            uuid
-                            clsEventTypeByIdEventType {
+                          uuid
+                          clsEventTypeByIdEventType {
                             code
                           }
-                            requestBody
-                            idBot
-                    
+                          requestBody
+                          idBot
+                          clsUserByIdUser {
+                            identificator
+                          }
                         }
                     }
                 }

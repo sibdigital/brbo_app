@@ -105,62 +105,56 @@ class EventTypesService {
         }
     }
 
-    async getParentEventsById(Id){
+    async getRegMessageRouteEvents(events, idBot){
         try {
+            const ids = events.map(node => "\"" + node.uuid + "\"")
             const data = await graphQLClient.request(gql`
                 {
-                      allClsEventTypes(condition: {idParent: "${Id}", isDeleted: false}) {
-                        nodes {
-                          code
-                          dateCreate
-                          idParent
-                          idTargetSystem
-                          isDeleted
-                          name
-                          type
-                        }
-                      }
-                }
-            `)
-            return data.allClsEventTypes.nodes
-        } catch (e) {
-            logger.error(`eventTypesService.getParentEventsById() - ` + e)
-            return false
-        }
-    }
-    async getParentIdByCode(code){
-        try {
-            const data = await graphQLClient.request(gql`
-                {
-                  allClsEventTypes(condition: {code: "${code}", isDeleted: false}) {
+                  allRegMessageRoutes(filter: {idEventType: {in: [${ids}]}}, condition: {isDeleted: false, idBot: "${idBot}"}) {
                     nodes {
-                      uuid
+                      idBot
+                      idEventType
+                            clsEventTypeByIdEventType {
+                                code
+                                idParent
+                                idTargetSystem
+                                name
+                                type
+                                uuid
+                                dateCreate
+                      }
                     }
                   }
                 }
             `)
-            return data.allClsEventTypes.nodes[0]
+            return data.allRegMessageRoutes.nodes
         } catch (e) {
             logger.error(`eventTypesService.getParentEventsById() - ` + e)
             return false
         }
     }
-    async getAllEventType(){
+    async getParentEventsById(code){
         try {
             const data = await graphQLClient.request(gql`
                 {
-                  allClsEventTypes {
-                    nodes {
-                      code
-                      name
-                      idParent
+                  allClsEventTypes(condition: {code: "${code}", isDeleted: false}) {
+                    edges {
+                      node {
+                        clsEventTypesByIdParent {
+                          nodes {
+                            name
+                            code
+                            uuid
+                          }
+                        }
+                      }
                     }
-                  } 
+                  }
                 }
             `)
-            return data.allClsEventTypes.nodes
+            return data.allClsEventTypes.edges[0].node.clsEventTypesByIdParent.nodes
         } catch (e) {
-            logger.error(`eventTypesService.getAllEventType() - ` + e)
+            logger.error(`eventTypesService.getParentEventsById() - ` + e)
             return false
         }
     }

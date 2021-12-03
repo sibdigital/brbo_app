@@ -55,19 +55,20 @@ class EventTypeController {
     async getRequestEvent(req, res) {
         if (!req.body) return res.sendStatus(400);
 
-        const eventTypes = req.body.event_types
-        const idParent = await EventTypeService.getParentIdByCode(eventTypes);
-        const parentEvents = await EventTypeService.getParentEventsById(idParent.uuid)
+        const eventTypes = req.body.event_types;
+        const idBot = req.body.id_bot;
+        const eventsByParent = await EventTypeService.getParentEventsById(eventTypes);
+        const parentEvents = await EventTypeService.getRegMessageRouteEvents(eventsByParent, idBot)
         try {
             res.send(parentEvents.map((item) => {
                 let json = null;
                 json = JSON.stringify({
-                    code: item.code,
-                    name: item.name,
-                    type: item.type,
-                    idParent: item.idParent,
-                    idTargetSystem: item.idTargetSystem,
-                    dateCreate: item.dateCreate
+                    code: item.clsEventTypeByIdEventType.code,
+                    name: item.clsEventTypeByIdEventType.name,
+                    type: item.clsEventTypeByIdEventType.type,
+                    idParent: item.clsEventTypeByIdEventType.idParent,
+                    idTargetSystem: item.clsEventTypeByIdEventType.idTargetSystem,
+                    dateCreate: item.clsEventTypeByIdEventType.dateCreate
                 })
                 return json;
             }))

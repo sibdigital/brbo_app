@@ -57,6 +57,7 @@ module.exports.taskSentMessages = cron.schedule(expressionSend, function () {
             messages.forEach(async (message) => {
                 logger.info(`sending message ${message.uuid} (to user: ${message.idUser})`);
 
+
                 let idBot = await MessagesService.getIdBotByIncomRequest(message.idIncomRequest);
                 let messageToSend = JSON.parse(message.text);
                 let settingsToSend = JSON.parse(message.settings);
@@ -151,11 +152,14 @@ async function sendTelegram(settingsToSend, tgmBotRecord, item, buttons, message
             await tgmBotRecord.sendMessage(item.outerId, sendMes, {parseMode: 'markdown', replyMarkup})
 
         } else if (messageToSend && messageToSend.length != 0) {
-            messageToSend.forEach(item => {
-                sendMes += "\n" + item.label;
-            });
+                messageToSend.forEach(item => {
+                    sendMes += "\n" + item.label;
+                });
+            const splitMess = sendMes.match(/[\s\S]{1,1000}/g);
             const replyMarkup = await additionalButtons(buttons, previousEvent, 'telegram');
-            await tgmBotRecord.sendMessage(item.outerId, sendMes, {parseMode: 'markdown', replyMarkup});
+            for (const value of splitMess) {
+                await tgmBotRecord.sendMessage(item.outerId, value, {parseMode: 'markdown', replyMarkup});
+            }
         } else {
             await tgmBotRecord.sendMessage(item.outerId, "По вашему запросу ничего не найдено");
         }
@@ -190,8 +194,11 @@ async function sendViber(settingsToSend, viberBotRecord, item, buttons, messageT
             messageToSend.forEach(item => {
                 sendMes += "\n" + item.label;
             });
+            const splitMess = sendMes.match(/[\s\S]{1,1000}/g);
             const keyboard = await additionalButtons(buttons, previousEvent, 'viber');
-            await viberBotRecord.sendText(item.outerId, sendMes, keyboard)
+            for (const value of splitMess) {
+                await viberBotRecord.sendText(item.outerId, value, keyboard);
+            }
         } else {
             await viberBotRecord.sendText(item.outerId, "По вашему запросу ничего не найдено");
         }

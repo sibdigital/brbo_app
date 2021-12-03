@@ -24,22 +24,6 @@ class MessagesService {
                 }
             }`;
             const data = await graphQLClient.request(query,input);
-            // mutation {
-            //     __typename
-            //     createRegSentMessage(input: {regSentMessage: {
-            //         idEventType: "${message.idEventType}",
-            //             idTargetSystem: "${message.idTargetSystem}",
-            //             text: "${message.text}",
-            //             idUser: "${message.idUser}",
-            //             status: 0,
-            //             attachedFile: "${message.attached_file}",
-            //             attachedFileType: "${message.attached_file_type}",
-            //             attachedFileSize: ${message.attached_file_size},
-            //         attachedFileHash: "${message.attached_file_hash}"
-            //         dateCreate: "${new Date().toISOString()}"}}) {
-            //         clientMutationId
-            //     }
-            // }
             return data.error || 1
         }catch(reason) {
             logger.error(`messageService.addMessage(): ` + reason)
@@ -230,42 +214,10 @@ class MessagesService {
         }
     }
 
-    async getMessengerUserMessageRoutesByBot(idUser, idEventType, idBot){
-        try {
-            let data = await graphQLClient.request(gql`
-                {
-                    allVMessengerUserMessageRoutes(condition: {
-                        idUser: "${idUser}", 
-                        idEventType: "${idEventType}",
-                        idBot: "${idBot}"
-                    }) {
-                        nodes {                             
-                                idBot
-                                idUser
-                                idMessenger
-                                idEventType
-                                idTargetSystem
-                                idParentEventType
-                                outerId
-                                userSettings
-                                botName
-                                botSettings
-                                messengerCode
-                        }
-                    }
-                }
-            `)
-            return data.allVMessengerUserMessageRoutes.nodes
-        } catch (e) {
-            logger.error(`messageService.getMessengerUserMessageRoutesByBot():` + e)
-            return `messageService.getMessengerUserMessageRoutesByBot():` + e
-        }
-    }
-
-    async getUserKeyboardData(idUser, idBot, idParentEventTypeCode){
+    async getUserKeyboardData(idUser, idBot, idParentEventTypeCode) {
         try {
             let gquery;
-            if(idParentEventTypeCode == null){
+            if (idParentEventTypeCode == null) {
                 gquery = gql`
                     {
                         allVMessengerUserMessageRoutes(
@@ -278,27 +230,11 @@ class MessagesService {
                         }
                     }
                 `
-            } else {
-                const idEvent = await EventTypeService.findEventTypeByCodeAndType(idParentEventTypeCode, 1)
-                gquery = gql`
-                    {
-                        allVMessengerUserMessageRoutes(
-                            condition: {idBot: "${idBot}", idUser: "${idUser}", idParentEventType: "${idEvent[0].uuid}", typeEvent: 1 }
-                        ) {
-                            nodes {
-                                idEventType
-                            }
-                        }
-                    }
-                `
-            }
+                let data = await graphQLClient.request(gquery);
 
-            let data = await graphQLClient.request(gquery);
-
-            if(data.allVMessengerUserMessageRoutes.nodes[0]) {
-                const ids = data.allVMessengerUserMessageRoutes.nodes.map(node => "\"" + node.idEventType + "\"")
-
-                const result = await graphQLClient.request(gql`
+                if (data.allVMessengerUserMessageRoutes.nodes[0]) {
+                    const ids = data.allVMessengerUserMessageRoutes.nodes.map(node => "\"" + node.idEventType + "\"")
+                    const result = await graphQLClient.request(gql`
                     {
                         allClsEventTypes(filter: {uuid: {in: [${ids}]}}) {
                             nodes {
@@ -308,7 +244,8 @@ class MessagesService {
                         }
                     }
                 `);
-                return result.allClsEventTypes.nodes
+                    return result.allClsEventTypes.nodes
+                }
             } else {
                 return null
             }
@@ -341,6 +278,22 @@ class MessagesService {
         } catch(e){
             logger.error(`messageService.setMessageStatus(): ` + e)
             return 0
+        }
+    }
+    async createMessengerUser(request){
+        try {
+            let input = {input: {regMessengerUser:request}};
+            const query = gql`
+            mutation MyMutation($input: CreateRegMessengerUserInput!) {
+              createRegMessengerUser(input: $input) {
+                clientMutationId
+              }
+            }`;
+            const data = await graphQLClient.request(query,input);
+            return true
+        } catch (e) {
+            logger.error(`messageService.getIdBotByIncomRequest():` + e)
+            return false
         }
     }
 }
