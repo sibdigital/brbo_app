@@ -105,12 +105,12 @@ class EventTypesService {
         }
     }
 
-    async getRegMessageRouteEvents(events, idBot){
+    async getRegMessageRouteEvents(events, idBot, idUser){
         try {
             const ids = events.map(node => "\"" + node.uuid + "\"")
             const data = await graphQLClient.request(gql`
                 {
-                  allRegMessageRoutes(filter: {idEventType: {in: [${ids}]}}, condition: {isDeleted: false, idBot: "${idBot}"}) {
+                  allRegMessageRoutes(filter: {idEventType: {in: [${ids}]}}, condition: {isDeleted: false, idUser: "${idUser}", idBot: "${idBot}"}) {
                     nodes {
                       idBot
                       idEventType

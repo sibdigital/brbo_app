@@ -1,6 +1,7 @@
 const {logger} = require('../log')
 const EventTypeService = require('../services/eventTypes.service')
 const TargetSystemService = require('../services/targetSystem.service')
+const UsersService = require("../services/users.service");
 
 class EventTypeController {
 
@@ -57,8 +58,9 @@ class EventTypeController {
 
         const eventTypes = req.body.event_types;
         const idBot = req.body.id_bot;
+        const idUser = await UsersService.findUserExists(req.body.id_user)
         const eventsByParent = await EventTypeService.getParentEventsById(eventTypes);
-        const parentEvents = await EventTypeService.getRegMessageRouteEvents(eventsByParent, idBot)
+        const parentEvents = await EventTypeService.getRegMessageRouteEvents(eventsByParent, idBot, idUser[0].uuid);
         try {
             res.send(parentEvents.map((item) => {
                 let json = null;
