@@ -222,6 +222,31 @@ class UsersService {
             return false
         }
     }
+    async findUserExists(identificator){
+        try {
+            let data = await graphQLClient.request(gql`
+            {
+                  allClsUsers(condition: {identificator: "${identificator}", isDeleted: false}) {
+                    nodes {
+                      code
+                      login
+                      firstname
+                      lastname
+                      patronymic
+                      email
+                      identificator
+                      uuid
+                    }
+                  }
+            }
+            `)
+            return data.allClsUsers.nodes;
+        }
+        catch (e) {
+            logger.error(`usersService.findUserExists - ` + e)
+            return false
+        }
+    }
     async getAllEvents(){
         try {
             let data = await graphQLClient.request(gql`

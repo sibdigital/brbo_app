@@ -59,7 +59,7 @@ class MessagesService {
             if(params) {
                 const data = await graphQLClient.request(gql`
                             mutation {
-                                getSentMessages(input: { pFindedStatus: ${params.findedStatus}, pTemporaryStatus: ${params.tempStatus}}){
+                                getSentMessages(input: { pFindedStatus: [${params.findedStatus}], pTemporaryStatus: ${params.tempStatus}}){
                                         regSentMessages {
                                             uuid
                                             idUser

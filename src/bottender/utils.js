@@ -6,10 +6,10 @@ const IncomRequestService = require("../services/incomRequest.service");
 const BotService = require("../services/bot.service")
 const {logger} = require('../log');
 
-const USER_NOT_REGISTERED_MESSAGE = 'Вы не зарегистрированы! Пройдите регистрацию';
+const USER_NOT_REGISTERED_MESSAGE = 'Вы не зарегистрированы! Для регистрации обратитесь к администратору системы для получения идентификатора';
 const REQUEST_NOT_AVAILABLE_MESSAGE = 'Вам недоступны запросы. Обратитесь к администратору системы';
 const SELECT_REQUEST_MESSAGE = 'Выберите запрос';
-const REQUEST_ACCEPTED_MESSAGE = '*Запрос принят. Ожидайте ответа*';
+const REQUEST_ACCEPTED_MESSAGE = 'Ожидайте...';
 
 const FIND_PROJ = process.env.FIND_PROJ
 const FIND_MEMB = process.env.FIND_MEMB
@@ -308,32 +308,36 @@ async function registration(context) {
     }
 }
 
-async function createUser(context){
+async function createUser(context) {
     try {
-        const identificator = context.platform === 'telegram' ? context.event.message.from.id : context.event.rawEvent.sender.id;;
+        const identificator = context.platform === 'telegram' ? context.event.message.from.id : context.event.rawEvent.sender.id;
         const targetUser = await UsersService.getTargetUserByIdentificator(context.event.message.text)
-        const user = targetUser.length !== 0 ? await UsersService.createUser(targetUser[0]) : null;
-        if (user) {
-            const bot = await BotService.getBotByCode(context.state.idBot)
-            const input = {
-                idMessenger: bot[0].idMessenger,
-                idUser: user.uuid,
-                outerId: identificator.toString()
-            }
-            const createMessengerUser = await MessagesService.createMessengerUser(input);
-            const updateTargetUser = await UsersService.updateTargetUserId(targetUser[0].uuid, user.uuid)
-            const createMessRoutes = await UsersService.createMessageRoutes(input, bot[0].uuid, targetUser[0].idTargetSystem);
-            if (createMessengerUser && updateTargetUser) {
-                await context.sendText("Вы зарегистрированы");
+        if (targetUser.length !== 0) {
+            const userExists = await UsersService.findUserExists(targetUser[0].outerId);
+            if (userExists.length === 0) {
+                const user = await UsersService.createUser(targetUser[0])
+                const bot = await BotService.getBotByCode(context.state.idBot)
+                const input = {
+                    idMessenger: bot[0].idMessenger,
+                    idUser: user.uuid,
+                    outerId: identificator.toString()
+                }
+                const createMessengerUser = await MessagesService.createMessengerUser(input);
+                const updateTargetUser = await UsersService.updateTargetUserId(targetUser[0].uuid, user.uuid)
+                const createMessRoutes = await UsersService.createMessageRoutes(input, bot[0].uuid, targetUser[0].idTargetSystem);
+                if (createMessengerUser && updateTargetUser && createMessRoutes) {
+                    await context.sendText("Вы зарегистрированы");
+                } else {
+                    await context.sendText("Вы не зарегистрированы. Обратитесь к администратору за информацией");
+                }
             } else {
-                await context.sendText("Обратитесь к администратору за информацией");
+                await context.sendText("Пользователь с таким идентификатором уже зарегистрирован");
             }
         } else {
-            await context.sendText("Ваш идентификатор не совпадает");
+            await context.sendText("Введенный вами идентификатор не совпадает с идентификатором, который назначен вам администратором");
         }
         context.resetState();
-    }
-    catch (e) {
+    } catch (e) {
         logger.error("createUser: " + e)
     }
 }
