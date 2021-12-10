@@ -148,22 +148,32 @@ async function sendTelegram(settingsToSend, tgmBotRecord, item, buttons, message
     let parseMode = 'markdown';
 
     if (tgmBotRecord._token === allSessions[id]._state.idBot) {
+//         if (settingsToSend && settingsToSend.length != 0) {
+//             settingsToSend.forEach(value => {
+// //                buttons.push(value.length > 1 ? value : [value]);
+//                 if(value.length > 1){
+//                     buttons.push(value);
+//                 }
+//                 else {
+//                     buttons.push([value]);
+//                 }
+//             });
+//             messInfo = messageToSend ? messageToSend.text : messInfo;
+//             //const splitMess = await splitArrayMessages(buttons, 20);
+//             //await sendMessage(splitMess, parseMode, tgmBotRecord, item, messInfo, "buttons", previousEvent);
+//             //await tgmBotRecord.sendMessage(item.outerId, messInfo, {parseMode: parseMode, replyMarkup})
+//
+//         }
         if (settingsToSend && settingsToSend.length != 0) {
             settingsToSend.forEach(value => {
-//                buttons.push(value.length > 1 ? value : [value]);
-                if(value.length > 1){
-                    buttons.push(value);
-                }
-                else {
-                    buttons.push([value]);
-                }
+                buttons.push([{'text': value.label, 'callback_data': value.eventTypeCode + ":" + value.identificator}]);
             });
             messInfo = messageToSend ? messageToSend.text : messInfo;
-            const splitMess = await splitArrayMessages(buttons, 20);
-            await sendMessage(splitMess, parseMode, tgmBotRecord, item, messInfo, "buttons", previousEvent);
-            //await tgmBotRecord.sendMessage(item.outerId, messInfo, {parseMode: parseMode, replyMarkup})
+            const replyMarkup = await additionalButtons(buttons, previousEvent, 'telegram');
+            await tgmBotRecord.sendMessage(item.outerId, messInfo, {parseMode: 'markdown', replyMarkup})
 
-        } else if (messageToSend && messageToSend.length != 0) {
+        }
+         else if (messageToSend && messageToSend.length != 0) {
             messageToSend.forEach(item => {
                 if (item.workPackageLink) {
                     const workPackageLink = JSON.parse(item.workPackageLink);
@@ -175,7 +185,7 @@ async function sendTelegram(settingsToSend, tgmBotRecord, item, buttons, message
                 }
             });
             const splitMess = await splitArrayMessages(sendMesArr, 20);
-            await sendMessage(splitMess, parseMode, tgmBotRecord, replyMarkup, item, messInfo, "messages");
+            await sendMessage(splitMess, parseMode, tgmBotRecord, item, messInfo, "messages", previousEvent);
         }
          else {
             await tgmBotRecord.sendMessage(item.outerId, "По вашему запросу ничего не найдено");
@@ -282,27 +292,27 @@ async function splitArrayMessages(array, n) {
 async function sendMessage(message, parseMode, tgmBotRecord, item, messInfo, type, previousEvent) {
 
     for (const itemArr of message) {
-        if(type === "buttons"){
-            if(itemArr.length%2===0) {
-                const replyMarkup = await additionalButtons(itemArr, previousEvent, 'telegram');
-                await tgmBotRecord.sendMessage(item.outerId, messInfo, {parseMode: parseMode, replyMarkup});
-             }
-            else {
-                const removeItem = itemArr.indexOf(itemArr[itemArr.length-1]);
-                itemArr.splice(removeItem, 1);                          
-                itemArr.push([{'text': 'ЗАГЛУШКА', 'callback_data': 'фыв'}]);                                                                               
-                const replyMarkup = await additionalButtons(itemArr, previousEvent, 'telegram');
-                await tgmBotRecord.sendMessage(item.outerId, messInfo, {parseMode: parseMode, replyMarkup});
-            }
-
-        }
-        else {
+        // if(type === "buttons"){
+        //     if(itemArr.length%2===0) {
+        //         const replyMarkup = await additionalButtons(itemArr, previousEvent, 'telegram');
+        //         await tgmBotRecord.sendMessage(item.outerId, messInfo, {parseMode: parseMode, replyMarkup});
+        //      }
+        //     else {
+        //         const removeItem = itemArr.indexOf(itemArr[itemArr.length-1]);
+        //         itemArr.splice(removeItem, 1);
+        //         itemArr.push([{'text': 'ЗАГЛУШКА', 'callback_data': 'фыв'}]);
+        //         const replyMarkup = await additionalButtons(itemArr, previousEvent, 'telegram');
+        //         await tgmBotRecord.sendMessage(item.outerId, messInfo, {parseMode: parseMode, replyMarkup});
+        //     }
+        //
+        // }
+         if (type === "messages"){
             const message = itemArr.join()
-            const replyMarkup = await additionalButtons(message,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        previousEvent, 'telegram');
+            //const replyMarkup = await additionalButtons(message, previousEvent, 'telegram');
             if (message[message.length - 1] === itemArr) {
                 await tgmBotRecord.sendMessage(item.outerId, messInfo + message, {
                     parseMode: parseMode,
-                    replyMarkup
+                    //replyMarkup
                 });
             } else {
                 await tgmBotRecord.sendMessage(item.outerId, messInfo + message, {parseMode: parseMode});
