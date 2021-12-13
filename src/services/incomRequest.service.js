@@ -58,6 +58,9 @@ class IncomRequestService{
                           clsUserByIdUser {
                             identificator
                           }
+                          clsMessengerByIdMessenger {
+                            code
+                          }
                         }
                     }
                 }

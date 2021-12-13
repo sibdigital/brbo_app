@@ -111,11 +111,11 @@ class MessagesService {
         }
     }
 
-    async findEventTypeByMessage(message){
+    async findEventTypeByMessage(message, idTargetSystem){
         try {
             let data = await graphQLClient.request(gql`
                 {
-                    allClsEventTypes(condition: {code: "${message.eventTypeCode}", isDeleted: false}) {
+                    allClsEventTypes(condition: {code: "${message.eventTypeCode}", idTargetSystem:"${idTargetSystem}", isDeleted: false}) {
                         nodes {
                             uuid
                             idTargetSystem

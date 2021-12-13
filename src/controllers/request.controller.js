@@ -48,18 +48,21 @@ class RequestController {
                     .then((result) => {
                         res.send(requests.map((item) => {
                             let json = null;
+                            let requestBodyValues = JSON.parse(item.requestBody);
                             json = JSON.stringify({
                                 userId: item.clsUserByIdUser.identificator,
                                 idIncomRequest: item.uuid,
-                                requestBody: item.requestBody,
+                                requestBody: requestBodyValues.requestBody.callback_data,
                                 eventTypeCode: item.clsEventTypeByIdEventType.code,
                                 idBot: item.idBot,
+                                codeMessenger: item.clsMessengerByIdMessenger.code,
+                                idProject: requestBodyValues.requestBody.idProject,
                             });
 
                             return json;
                         }))
                     })
-                    .catch(() => res.send(500))
+                    .catch(() => res.send(500)).toString()
 
             } else {
                 res.sendStatus(404)

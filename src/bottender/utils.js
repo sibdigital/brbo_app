@@ -10,6 +10,8 @@ const USER_NOT_REGISTERED_MESSAGE = 'Вы не зарегистрированы!
 const REQUEST_NOT_AVAILABLE_MESSAGE = 'Вам недоступны запросы. Обратитесь к администратору системы';
 const SELECT_REQUEST_MESSAGE = 'Выберите запрос';
 const REQUEST_ACCEPTED_MESSAGE = 'Ожидайте...';
+const PLATFORM_VIBER = 'viber';
+const PLATFORM_TELEGRAM = 'telegram';
 
 const FIND_PROJ = process.env.FIND_PROJ
 const FIND_MEMB = process.env.FIND_MEMB
@@ -20,11 +22,11 @@ const REG_EVENT = process.env.REG_EVENT
 
 function getEventTypeCode(context) {
     let eventTypeCode;
-    if (context.platform === 'telegram') {
+    if (context.platform === PLATFORM_TELEGRAM) {
         const callbackQuery = context.event.callbackQuery;
         const messageId = callbackQuery.message.messageId;
         eventTypeCode = callbackQuery.data;
-    } else if (context.platform === 'viber') {
+    } else if (context.platform === PLATFORM_VIBER) {
         if (context.event.isText) {
             eventTypeCode = context.event.message.text;
         }
@@ -35,7 +37,7 @@ function getEventTypeCode(context) {
 
 function constructKeyboard(context, requests) {
     let keyboard;
-    if (context.platform === 'telegram') {
+    if (context.platform === PLATFORM_TELEGRAM) {
         const buildTelegramKeyboard = (keysArr) => {
             let arr = []
             keysArr.forEach(eventType => {
@@ -55,7 +57,7 @@ function constructKeyboard(context, requests) {
             return keyboard;
         }
         keyboard = buildTelegramKeyboard(requests);
-    } else if (context.platform === 'viber') {
+    } else if (context.platform === PLATFORM_VIBER) {
         const buildViberKeyboard = (keysArr) => {
             const buttons = [];
             keysArr.forEach(eventType => {
@@ -87,7 +89,7 @@ var showKeyboard = async function(context) {
     const lastEvent = context.state.lastEvent;
 
     const registeredUser = await UsersService.registeredUser(userId, botToken);
-    if (context.platform === 'telegram') {
+    if (context.platform === PLATFORM_TELEGRAM) {
         if (lastEvent) {
             if (context.event.isMessage && lastEvent.includes(FIND_PROJ)) {
                 await FindProj(context, GET_MESS_FIND_PROJ)
@@ -125,15 +127,21 @@ var answerKeyboard = async function(context) {
 
     const registeredUser = await UsersService.registeredUser(userId, botToken);
     if(await checkRegistration(context, registeredUser) === true) {return}
-    let requestBody = null;
+    let requestBody;
     let eventSt;
     const eventTypeCode = getEventTypeCode(context);
     if (eventTypeCode.includes(":")) {
         requestBody = eventTypeCode.split(":")[1]
         eventSt = eventTypeCode.split(":")[0]
+        context.state.callback_data = requestBody
+    }
+    else if (eventTypeCode.includes("*")) {
+        requestBody = eventTypeCode.split("*")[1]
+        eventSt = eventTypeCode.split("*")[0]
         context.state.idProject = requestBody
     } else {
         eventSt = eventTypeCode;
+        requestBody = eventTypeCode
     }
     const eventType = await EventTypeService.findEventTypeByCodeAndType(eventSt, null)
     await searchProcessingViber(context)
@@ -146,13 +154,15 @@ var answerKeyboard = async function(context) {
         } else {
             const eventType = await EventTypeService.findEventTypeByCodeAndType(eventSt, null)
             if (eventType && eventType.length > 0) {
+                const requestValue = {requestBody:{idProject: context.state.idProject, callback_data: requestBody}};
+                const json = JSON.stringify(requestValue)
                 const result = await IncomRequestService.addIncomRequest({
                     idBot: registeredUser.bot.uuid,
                     idMessenger: registeredUser.bot.idMessenger,
                     idEventType: eventType[0].uuid,
                     idTargetSystem: eventType[0].idTargetSystem,
                     idUser: registeredUser.user.uuid,
-                    requestBody: requestBody,
+                    requestBody: json.replace(/[\\"']/g, '\\$&').replace(/\u0000/g, '\\0'),
                 })
                 if (result) {
                     await context.sendText(REQUEST_ACCEPTED_MESSAGE, {parseMode: 'markdown'})
@@ -166,10 +176,10 @@ async function FindProj(context, event) {
     try {
         let user;
         let project;
-        if (context.platform === "telegram") {
+        if (context.platform === PLATFORM_TELEGRAM) {
             user = context.event.rawEvent.message.from
             project = context.event.message.text.trim()
-        } else if (context.platform === "viber") {
+        } else if (context.platform === PLATFORM_VIBER) {
             user = context.event.rawEvent.sender
             project = context.state.lastEvent
         }
@@ -177,14 +187,15 @@ async function FindProj(context, event) {
         if (project) {
             const registeredUser = await UsersService.registeredUser(user.id, botToken);
             const eventType = await EventTypeService.findEventTypeByCodeAndType(event, null)
-
+            const requestValue = {requestBody:{idProject: context.state.idProject, callback_data: project}};
+            const json = JSON.stringify(requestValue)
             const result = await IncomRequestService.addIncomRequest({
                 idBot: registeredUser.bot.uuid,
                 idMessenger: registeredUser.bot.idMessenger,
                 idEventType: eventType[0].uuid,
                 idTargetSystem: eventType[0].idTargetSystem,
                 idUser: registeredUser.user.uuid,
-                requestBody: project,
+                requestBody: json.replace(/[\\"']/g, '\\$&').replace(/\u0000/g, '\\0'),
             })
             if (result) {
                 await context.sendText(REQUEST_ACCEPTED_MESSAGE, {parseMode: 'markdown'})
@@ -203,16 +214,16 @@ async function FindMemb(context, event) {
     try {
         let user;
         let fio;
-        if (context.platform === "telegram") {
+        if (context.platform === PLATFORM_TELEGRAM) {
             user = context.event.message.from
             fio = context.event.message.text.trim()
-        } else if (context.platform === "viber") {
+        } else if (context.platform === PLATFORM_VIBER) {
             user = context.event.rawEvent.sender
             fio = context.event.message.text
         }
         const botToken = context.client._token
-        const idProject = context.state.idProject;
-        const json = JSON.stringify({idProject, fio})
+        const requestValue = {requestBody:{idProject: context.state.idProject, callback_data: fio}};
+        const json = JSON.stringify(requestValue)
         if (json) {
             const registeredUser = await UsersService.registeredUser(user.id, botToken);
             const eventType = await EventTypeService.findEventTypeByCodeAndType(event, null)
@@ -237,7 +248,7 @@ async function FindMemb(context, event) {
 }
 
 async function searchProcessingViber(context) {
-    if (context.platform === 'viber') {
+    if (context.platform === PLATFORM_VIBER) {
         if (context.event.message.text.includes(FIND_PROJ)) {
             context.setState({searchingProj: context.event.message.text})
         } else if (context.event.message.text.includes(FIND_MEMB)) {
@@ -257,12 +268,12 @@ async function searchProcessingViber(context) {
 }
 
 async function checkMenu(context) {
-    if (context.platform === 'telegram') {
+    if (context.platform === PLATFORM_TELEGRAM) {
         if(context.event.callbackQuery.data === 'Меню') {
             await showKeyboard(context)
             return true;
         }
-    } else if (context.platform === 'viber') {
+    } else if (context.platform === PLATFORM_VIBER) {
         if(context.event.message.text === 'Меню') {
             await showKeyboard(context)
             return true;
@@ -282,7 +293,7 @@ async function checkRegistration(context, registeredUser){
 
 async function registration(context) {
     if (context.state.lastEvent === REG_EVENT) {
-        if (context.platform === 'telegram') {
+        if (context.platform === PLATFORM_TELEGRAM) {
             if (context.event.callbackQuery) {
                 await context.sendText("Введите идентификатор полученный от администратора")
             } else if (context.event.isMessage) {
@@ -292,7 +303,7 @@ async function registration(context) {
                     logger.error("registrationTelegram: " + e)
                 }
             }
-        } else if (context.platform === 'viber') {
+        } else if (context.platform === PLATFORM_VIBER) {
             const previousEvent = context.state.previousEvent
             if (context.state[previousEvent].message.message.text === REG_EVENT) {
                 try {
@@ -310,7 +321,7 @@ async function registration(context) {
 
 async function createUser(context) {
     try {
-        const identificator = context.platform === 'telegram' ? context.event.message.from.id : context.event.rawEvent.sender.id;
+        const identificator = context.platform === PLATFORM_TELEGRAM ? context.event.message.from.id : context.event.rawEvent.sender.id;
         const targetUser = await UsersService.getTargetUserByIdentificator(context.event.message.text)
         if (targetUser.length !== 0) {
             const userExists = await UsersService.findUserExists(targetUser[0].outerId);

@@ -11,6 +11,8 @@ const expressionSend = process.env.CRON_EXPRESSION_SEND;
 const expressionDelete = process.env.CRON_EXPRESSION_DELETE;
 const PLATFORM_VIBER = 'viber';
 const PLATFORM_TELEGRAM = 'telegram';
+const TYPE_MESSAGE_BUTTON = 'button';
+const TYPE_MESSAGE_TEXT = 'text';
 
 //check delete sent messages every 1 day.
 module.exports.taskDeleteSentMessages = cron.schedule(expressionDelete, function () {
@@ -74,8 +76,8 @@ module.exports.taskSentMessages = cron.schedule(expressionSend, function () {
                     let error_sending = 'sending error';
 
                     for (const item of userMsgRoutes) {
-                        switch (item.messengerCode.toUpperCase()) {
-                            case "TELEGRAM":
+                        switch (item.messengerCode) {
+                            case PLATFORM_TELEGRAM:
                                 let tgmBotRecord = getClient(item.botCode);
                                 try {
                                     await sendTelegram(settingsToSend, tgmBotRecord, item, buttons, messageToSend);
@@ -87,7 +89,7 @@ module.exports.taskSentMessages = cron.schedule(expressionSend, function () {
                                 }
                                 break;
 
-                            case "VIBER":
+                            case PLATFORM_VIBER:
                                 let viberBotRecord = getClient(item.botCode);
                                 try {
                                     await sendViber(settingsToSend, viberBotRecord, item, buttons, messageToSend);
@@ -139,57 +141,39 @@ async function sendTelegram(settingsToSend, tgmBotRecord, item, buttons, message
     let messInfo = "Информация по вашему запросу";
     let sendMesArr = [];
     const sessionStore = getSessionStore();
-    const id = "telegram:" + item.outerId;
+    const id = PLATFORM_TELEGRAM + ":" + item.outerId;
     const allSessions = await sessionStore.all();
     const idPreviousMess = allSessions[id]._state.previousEvent;
     const previousMess = allSessions[id]._state[idPreviousMess];
+
     let previousEvent = previousMess.message.callbackQuery ? previousMess.message.callbackQuery.data : "Меню";
-    const emoji = "\u{1F539}";
-    let parseMode = 'markdown';
+    try {
+        if (tgmBotRecord._token === allSessions[id]._state.idBot) {
+            if (settingsToSend && settingsToSend.length != 0) {
+                settingsToSend.forEach(value => {
+                    buttons.push(value.length > 1 ? value : [value]);
+                });
+                messInfo = messageToSend ? messageToSend.text : messInfo;
+                const splitMess = await splitArrayMessages(buttons, 20);
+                await sendMessage(splitMess, tgmBotRecord, item, messInfo, TYPE_MESSAGE_BUTTON, previousEvent, PLATFORM_TELEGRAM);
 
-    if (tgmBotRecord._token === allSessions[id]._state.idBot) {
-//         if (settingsToSend && settingsToSend.length != 0) {
-//             settingsToSend.forEach(value => {
-// //                buttons.push(value.length > 1 ? value : [value]);
-//                 if(value.length > 1){
-//                     buttons.push(value);
-//                 }
-//                 else {
-//                     buttons.push([value]);
-//                 }
-//             });
-//             messInfo = messageToSend ? messageToSend.text : messInfo;
-//             //const splitMess = await splitArrayMessages(buttons, 20);
-//             //await sendMessage(splitMess, parseMode, tgmBotRecord, item, messInfo, "buttons", previousEvent);
-//             //await tgmBotRecord.sendMessage(item.outerId, messInfo, {parseMode: parseMode, replyMarkup})
-//
-//         }
-        if (settingsToSend && settingsToSend.length != 0) {
-            settingsToSend.forEach(value => {
-                buttons.push([{'text': value.label, 'callback_data': value.eventTypeCode + ":" + value.identificator}]);
-            });
-            messInfo = messageToSend ? messageToSend.text : messInfo;
-            const replyMarkup = await additionalButtons(buttons, previousEvent, 'telegram');
-            await tgmBotRecord.sendMessage(item.outerId, messInfo, {parseMode: 'markdown', replyMarkup})
-
+            } else if (messageToSend && messageToSend.length != 0) {
+                messageToSend.forEach(item => {
+                    if (item.link) {
+                        sendMesArr.push("\n" + item.emoji + " " + item.link + " " + item.label)
+                    } else {
+                        sendMesArr.push("\n" + item.emoji + item.label)
+                    }
+                });
+                const splitMess = await splitArrayMessages(sendMesArr, 20);
+                await sendMessage(splitMess, tgmBotRecord, item, messInfo, TYPE_MESSAGE_TEXT, previousEvent, PLATFORM_TELEGRAM);
+            } else {
+                await tgmBotRecord.sendMessage(item.outerId, "По вашему запросу ничего не найдено");
+            }
         }
-         else if (messageToSend && messageToSend.length != 0) {
-            messageToSend.forEach(item => {
-                if (item.workPackageLink) {
-                    const workPackageLink = JSON.parse(item.workPackageLink);
-                    const link = "<a href='" + workPackageLink.link + "'>" + workPackageLink.idWorkPackage + "</a>"
-                    sendMesArr.push("\n" + emoji + " " + link + " " + item.label)
-                    parseMode = 'html';
-                } else {
-                    sendMesArr.push("\n" + emoji + item.label)
-                }
-            });
-            const splitMess = await splitArrayMessages(sendMesArr, 20);
-            await sendMessage(splitMess, parseMode, tgmBotRecord, item, messInfo, "messages", previousEvent);
-        }
-         else {
-            await tgmBotRecord.sendMessage(item.outerId, "По вашему запросу ничего не найдено");
-        }
+    }
+    catch (e) {
+        logger.error(`sendTelegram(): ` + e)
     }
 }
 
@@ -197,57 +181,43 @@ async function sendTelegram(settingsToSend, tgmBotRecord, item, buttons, message
 async function sendViber(settingsToSend, viberBotRecord, item, buttons, messageToSend) {
     let messInfo = "Информация по вашему запросу.";
     let sendMesArr = [];
-    const id = "viber:" + item.outerId;
+    const id = PLATFORM_VIBER + ":" + item.outerId;
     const sessionStore = getSessionStore();
     const allSessions = await sessionStore.all();
     const idPreviousMess = allSessions[id]._state.previousEvent;
     const previousMess = allSessions[id]._state[idPreviousMess];
-    const emoji = "(checkmark)";
-    let previousEvent = idPreviousMess && previousMess.message.message.text.includes("_") ? previousMess.message.message.text : "Меню";
-    if (viberBotRecord._token === allSessions[id]._state.idBot) {
-        if (settingsToSend && settingsToSend.length != 0) {
-            settingsToSend.forEach(value => {
-                buttons.push({
-                    columns: 6,
-                    rows: 1,
-                    ActionType: "reply",
-                    ActionBody: value.eventTypeCode + ":" + value.identificator,
-                    Text: value.label,
-                });
-            });
-            messInfo = messageToSend ? messageToSend.text : messInfo;
-            const keyboard = await additionalButtons(settingsToSend, previousEvent, 'viber');
-            await viberBotRecord.sendText(item.outerId, messInfo, keyboard)
 
-        } else if (messageToSend && messageToSend.length != 0) {
-            messageToSend.forEach(item => {
-                if (item.workPackageLink) {
-                    const workPackageLink = JSON.parse(item.workPackageLink);
-                    sendMesArr.push("\n" + emoji + " " + workPackageLink.link + " " + item.label);
-                }
-                else{
-                    sendMesArr.push("\n" + item.label);
-                }
-            });
-            const splitMess = await splitArrayMessages(sendMesArr, 20);
-            const keyboard = await additionalButtons(buttons, previousEvent, 'viber');
-            for (const value of splitMess) {
-                const message = value.join()
-                if(splitMess[splitMess.length-1] === value) {
-                    await viberBotRecord.sendText(item.outerId,  messInfo + message, keyboard);
-                }
-                else {
-                    await viberBotRecord.sendText(item.outerId, messInfo + message);
-                }
+    let previousEvent = idPreviousMess && previousMess.message.message.text.includes("_") ? previousMess.message.message.text : "Меню";
+    try {
+        if (viberBotRecord._token === allSessions[id]._state.idBot) {
+            if (settingsToSend && settingsToSend.length != 0) {
+                messInfo = messageToSend ? messageToSend.text : messInfo;
+                const keyboard = await additionalButtons(settingsToSend, previousEvent, 'viber');
+                await viberBotRecord.sendText(item.outerId, messInfo, keyboard)
+
+            } else if (messageToSend && messageToSend.length != 0) {
+                messageToSend.forEach(item => {
+                    if (item.link) {
+                        sendMesArr.push("\n" + item.emoji + " " + item.link + " " + item.label)
+                    } else {
+                        sendMesArr.push("\n" + item.emoji + item.label)
+                    }
+                });
+                const splitMess = await splitArrayMessages(sendMesArr, 20);
+                await sendMessage(splitMess, viberBotRecord, item, messInfo, TYPE_MESSAGE_TEXT, previousEvent, PLATFORM_VIBER);
+
+            } else {
+                await viberBotRecord.sendText(item.outerId, "По вашему запросу ничего не найдено");
             }
-        } else {
-            await viberBotRecord.sendText(item.outerId, "По вашему запросу ничего не найдено");
         }
+    }
+    catch (e) {
+        logger.error(`sendViber(): ` + e)
     }
 }
 
 async function additionalButtons(buttons, previousEvent, platform) {
-    if(platform === 'viber') {
+    if(platform === PLATFORM_VIBER) {
         buttons.push({
                 columns: 3,
                 rows: 1,
@@ -271,7 +241,7 @@ async function additionalButtons(buttons, previousEvent, platform) {
             }
         };
     }
-    else if(platform === 'telegram'){
+    else if(platform === PLATFORM_TELEGRAM){
         buttons.push([{'text': 'Главное меню', 'callback_data': 'Меню'}, {
             'text': 'Назад',
             'callback_data': previousEvent,
@@ -289,35 +259,62 @@ async function splitArrayMessages(array, n) {
     }
     return result;
 }
-async function sendMessage(message, parseMode, tgmBotRecord, item, messInfo, type, previousEvent) {
 
-    for (const itemArr of message) {
-        // if(type === "buttons"){
-        //     if(itemArr.length%2===0) {
-        //         const replyMarkup = await additionalButtons(itemArr, previousEvent, 'telegram');
-        //         await tgmBotRecord.sendMessage(item.outerId, messInfo, {parseMode: parseMode, replyMarkup});
-        //      }
-        //     else {
-        //         const removeItem = itemArr.indexOf(itemArr[itemArr.length-1]);
-        //         itemArr.splice(removeItem, 1);
-        //         itemArr.push([{'text': 'ЗАГЛУШКА', 'callback_data': 'фыв'}]);
-        //         const replyMarkup = await additionalButtons(itemArr, previousEvent, 'telegram');
-        //         await tgmBotRecord.sendMessage(item.outerId, messInfo, {parseMode: parseMode, replyMarkup});
-        //     }
-        //
-        // }
-         if (type === "messages"){
-            const message = itemArr.join()
-            //const replyMarkup = await additionalButtons(message, previousEvent, 'telegram');
-            if (message[message.length - 1] === itemArr) {
-                await tgmBotRecord.sendMessage(item.outerId, messInfo + message, {
-                    parseMode: parseMode,
-                    //replyMarkup
-                });
-            } else {
-                await tgmBotRecord.sendMessage(item.outerId, messInfo + message, {parseMode: parseMode});
+async function sendButtonsTelegram(splitArray, tgmBotRecord, item, messInfo, previousEvent) {
+    try {
+        if (splitArray[splitArray.length-1].length !== 2 && splitArray[0].length === 2) {
+            const removeItem = splitArray.indexOf(splitArray[splitArray.length - 1]);
+            const itemA = splitArray[removeItem];
+            splitArray.splice(removeItem, 1);
+            splitArray.push([{'text': itemA[0][0].text, 'callback_data': itemA[0][0].callback_data}]);
+
+            const replyMarkup = await additionalButtons(splitArray, previousEvent, PLATFORM_TELEGRAM);
+            await tgmBotRecord.sendMessage(item.outerId, messInfo, {parseMode: "markdown", replyMarkup})
+
+        } else {
+            const replyMarkup = await additionalButtons(splitArray, previousEvent, PLATFORM_TELEGRAM);
+            await tgmBotRecord.sendMessage(item.outerId, messInfo, {parseMode: "markdown", replyMarkup})
+
+        }
+    } catch (e) {
+        logger.error(`sendButtonsTelegram(): ` + e)
+    }
+}
+
+async function sendMessage(array, botRecord, item, messInfo, type, previousEvent, platform) {
+    try {
+        for (const itemArr of array) {
+            if (type === TYPE_MESSAGE_BUTTON) {
+                await sendButtonsTelegram(itemArr, botRecord, item, messInfo, previousEvent);
+            }
+            if (type === TYPE_MESSAGE_TEXT) {
+                const message = itemArr.join()
+                const additionalBut = [];
+                if(platform === PLATFORM_TELEGRAM) {
+                    const replyMarkup = await additionalButtons(additionalBut, previousEvent, PLATFORM_TELEGRAM);
+                    if (array[array.length - 1] === itemArr) {
+                        await botRecord.sendMessage(item.outerId, messInfo + message, {
+                            parseMode: "html",
+                            replyMarkup
+                        });
+                    } else {
+                        await botRecord.sendMessage(item.outerId, messInfo + message, {parseMode: "html"});
+                    }
+                }
+                else if(platform === PLATFORM_VIBER){
+                    const keyboard = await additionalButtons(additionalBut, previousEvent, PLATFORM_VIBER);
+                    if(array[array.length-1] === itemArr) {
+                        await botRecord.sendText(item.outerId,  messInfo + message, keyboard);
+                    }
+                    else {
+                        await botRecord.sendText(item.outerId, messInfo + message);
+                    }
+                }
             }
         }
+    } catch (e) {
+        logger.error(`sendMessage(): ` + e)
     }
-
 }
+
+

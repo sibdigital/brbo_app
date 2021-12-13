@@ -1,6 +1,7 @@
 const {logger } = require("../log");
 const MessageService = require('../services/messages.service')
 const IncomRequestService = require('../services/incomRequest.service')
+const TargetSystemService = require('../services/targetSystem.service')
 /*
 test query in Postman
 curl --location --request POST 'localhost:3000/message/send' \
@@ -21,7 +22,8 @@ class MessageController {
             return new Promise(async (resolve, reject) => {
                 try {
                     let resMessage = message
-                    let data = await MessageService.findEventTypeByMessage(message)
+                    const idTargetSystem = await TargetSystemService.findTargetSystemByCode(message.targetSystemCode);
+                    let data = await MessageService.findEventTypeByMessage(message, idTargetSystem[0].uuid)
                     if (data.length == 0 || data[0].uuid == "" || data[0].clsTargetSystemByIdTargetSystem.regTargetSystemUsersByIdTargetSystem.edges.length == 0) {
                         resMessage.status = `not found route/eventTypes/user`
                         return resolve(resMessage)
@@ -29,7 +31,7 @@ class MessageController {
                         message.idEventType = data[0].uuid
                         message.idTargetSystem = data[0].idTargetSystem
                         message.idUser = data[0].clsTargetSystemByIdTargetSystem.regTargetSystemUsersByIdTargetSystem.edges[0].node.idUser
-
+                        delete message.targetSystemCode;
                         if (message.idIncomRequest) {
                             const isUpdated = await IncomRequestService.setIncomRequestStatus(message.idIncomRequest, 2)
                             if(isUpdated){
