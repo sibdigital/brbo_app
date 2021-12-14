@@ -29,7 +29,7 @@ server.use(bodyParser.json({verify, limit: '10mb'}));
 server.use(bodyParser.urlencoded({extended: false, verify, limit: '10mb'}));
 server.use(cors())
 server.use(postgraphile)
-server.use("/api", routes)
+server.use("/brbo/api", routes)
 server.all('*', (req, res) => {
     return handle(req, res);
 });
