@@ -88,6 +88,7 @@ var showKeyboard = async function(context) {
     const botToken = context._client._token
     const lastEvent = context.state.lastEvent;
 
+
     const registeredUser = await UsersService.registeredUser(userId, botToken);
     if (context.platform === PLATFORM_TELEGRAM) {
         if (lastEvent) {
@@ -133,7 +134,6 @@ var answerKeyboard = async function(context) {
     if (eventTypeCode.includes(":")) {
         requestBody = eventTypeCode.split(":")[1]
         eventSt = eventTypeCode.split(":")[0]
-        context.state.callback_data = requestBody
     }
     else if (eventTypeCode.includes("*")) {
         requestBody = eventTypeCode.split("*")[1]

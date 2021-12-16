@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const MessagesService = require('../services/messages.service');
 const IncomRequestService = require('../services/incomRequest.service');
+const EventTypesService = require('../services/eventTypes.service');
 const {logger} = require('../log');
 const {TIMEZONE, MSG_SENT_THRESHOLD, MSG_NO_SENT_THRESHOLD, REQ_SENT_THRESHOLD, REQ_NO_SENT_THRESHOLD, REQ_READ_THRESHOLD} = process.env;
 const expression = process.env.CRON_EXPRESSION;
@@ -140,13 +141,12 @@ module.exports.taskSentMessages = cron.schedule(expressionSend, function () {
 async function sendTelegram(settingsToSend, tgmBotRecord, item, buttons, messageToSend) {
     let messInfo = "Информация по вашему запросу";
     let sendMesArr = [];
+
     const sessionStore = getSessionStore();
     const id = PLATFORM_TELEGRAM + ":" + item.outerId;
     const allSessions = await sessionStore.all();
-    const idPreviousMess = allSessions[id]._state.previousEvent;
-    const previousMess = allSessions[id]._state[idPreviousMess];
+    const previousEvent = await buttonBack(item, allSessions, id, PLATFORM_TELEGRAM);
 
-    let previousEvent = previousMess.message.callbackQuery ? previousMess.message.callbackQuery.data : "Меню";
     try {
         if (tgmBotRecord._token === allSessions[id]._state.idBot) {
             if (settingsToSend && settingsToSend.length != 0) {
@@ -176,7 +176,6 @@ async function sendTelegram(settingsToSend, tgmBotRecord, item, buttons, message
         logger.error(`sendTelegram(): ` + e)
     }
 }
-
 //sendViber
 async function sendViber(settingsToSend, viberBotRecord, item, buttons, messageToSend) {
     let messInfo = "Информация по вашему запросу.";
@@ -184,10 +183,8 @@ async function sendViber(settingsToSend, viberBotRecord, item, buttons, messageT
     const id = PLATFORM_VIBER + ":" + item.outerId;
     const sessionStore = getSessionStore();
     const allSessions = await sessionStore.all();
-    const idPreviousMess = allSessions[id]._state.previousEvent;
-    const previousMess = allSessions[id]._state[idPreviousMess];
+    const previousEvent = await buttonBack(item, allSessions, id, PLATFORM_VIBER);
 
-    let previousEvent = idPreviousMess && previousMess.message.message.text.includes("_") ? previousMess.message.message.text : "Меню";
     try {
         if (viberBotRecord._token === allSessions[id]._state.idBot) {
             if (settingsToSend && settingsToSend.length != 0) {
@@ -314,6 +311,52 @@ async function sendMessage(array, botRecord, item, messInfo, type, previousEvent
         }
     } catch (e) {
         logger.error(`sendMessage(): ` + e)
+    }
+}
+
+async function buttonBack(item, allSessions, id, messenger) {
+    try {
+        const previousEventsArray = [];
+        const session = allSessions[id]._state;
+        let back = "Меню";
+        for (const [channel, value] of Object.entries(session)) {
+
+            if (PLATFORM_TELEGRAM === messenger) {
+                if (value !== null && value.message && value.message.callbackQuery) {
+                    previousEventsArray.push(value)
+                }
+            } else if (PLATFORM_VIBER === messenger) {
+                const allEvents = await EventTypesService.findAllEvents()
+                for (let allEventsKey in allEvents) {
+                        value !== null && value.message && value.message.message.text.includes(allEvents[allEventsKey].code) ? previousEventsArray.push(value) : ""
+                }
+            }
+        }
+
+        const reversePreviousEventsArray = Object.assign([], previousEventsArray).reverse()
+        let eventSt = "";
+        const spliter = /[:,*]+/;
+        for (let key in reversePreviousEventsArray) {
+                if (messenger === PLATFORM_TELEGRAM) {
+                    const parentEventTelegram = await EventTypesService.findParentEventByCode(reversePreviousEventsArray[0].message.callbackQuery.data.split(spliter)[0])
+                    eventSt = reversePreviousEventsArray[key].message.callbackQuery.data.split(spliter)[0]
+                    if (parentEventTelegram[0] != null && parentEventTelegram[0].clsEventTypeByIdParent && eventSt === parentEventTelegram[0].clsEventTypeByIdParent.code) {
+                        back = reversePreviousEventsArray[key].message.callbackQuery.data;
+                        return back
+                    }
+                } else if (messenger === PLATFORM_VIBER) {
+                    const parentEventViber = await EventTypesService.findParentEventByCode(reversePreviousEventsArray[0].message.message.text.split(spliter)[0])
+                    eventSt = reversePreviousEventsArray[key].message.message.text.split(spliter)[0]
+                    if (parentEventViber[0] !=null && eventSt === parentEventViber[0].clsEventTypeByIdParent.code) {
+                        back = reversePreviousEventsArray[key].message.message.text;
+                        return back
+                    }
+                }
+            }
+        return back;
+
+    } catch (e) {
+        logger.error(`buttonBack(): ` + e)
     }
 }
 
